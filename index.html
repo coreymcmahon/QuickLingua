@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html>
+<head>
+<meta charset="UTF-8">
+<title>QuickLinguaJS - Español</title>
+<link href="styles.css" rel="stylesheet" type="text/css">
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
 <script src="quicklingua" type="text/javascript"></script>
-
-<script>
+<script type="text/javascript">
 	var card = null;
 	function handleRatingChange() {
 		var selectedRating = $('#rating-container input:checked').val();
@@ -37,7 +40,7 @@
 		languageTool.setDatasource(datasource);
 	});
 </script>
-<link href="styles.css" type="stylesheet">
+</head>
 <div id="card-container">
 	<p id="es">&nbsp;</p>
 	<p id="en">&nbsp;</p>	

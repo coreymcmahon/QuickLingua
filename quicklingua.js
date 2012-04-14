@@ -1,4 +1,7 @@
 "use strict";
+/**
+ * Datasource implements a basic iterator interface.
+ */
 var datasource = (function () {
 	var config = {
 		url: './data/spanish.csv'
@@ -7,13 +10,19 @@ var datasource = (function () {
 	var counter = 0;
 
 	/**
+	 * Set the config object from outside the class
 	 * @param _config Object containing the configuration values
+	 * @public
 	 */
 	function setConfig(_config) {
 		config = _config;
 		data = null;
 	}
 	
+	/**
+	 * Loads the data file
+	 * @public
+	 */	
 	function loadFile() {
 		$.ajax({
 			url: config.url,
@@ -22,6 +31,7 @@ var datasource = (function () {
 				var lines = ('' + csv).split('\n');
 				data = [];
 				for (var i=1 ; i < lines.length ; i++) {
+					// Ignore the first line, which contains the column names
 					var values = lines[i].split(',');
 					data[i-1] = {
 						en: values[0],
@@ -31,7 +41,12 @@ var datasource = (function () {
 			}
 		});
 	}
-	
+
+	/**
+	 * Get the next element in the data file
+	 * @public
+	 * @return A string from the data file
+	 */	
 	function next() {
 		if (!data) {
 			loadFile();
@@ -39,11 +54,20 @@ var datasource = (function () {
 		counter++;
 		return data[counter-1];
 	}
-	
+
+	/**
+	 * Fast forward to this element in the data file
+	 * @public
+	 */
 	function setCounter(_counter) {
 		counter = _counter;
 	}
-	
+
+	/**
+	 * Get a random element from the data file
+	 * @public
+	 * @return A string from the data file	
+	 */
 	function random() {
 		if (!data) {
 			loadFile();
@@ -59,6 +83,9 @@ var datasource = (function () {
 	};
 } ());
 
+/**
+ *
+ */
 var languageTool = (function () {
 	var datasource = null;
 	var cardPile = null;
@@ -70,12 +97,12 @@ var languageTool = (function () {
 	};
 
 	/**
-	 * 
-	 *
+	 * Get a Date object a certain number of days, hours or minutes from now
+	 * @private
 	 * @param days 
 	 * @param hours 
 	 * @param minutes 
-	 * @return
+	 * @return A JavaScript Date object
 	 */
 	function _getDateFromNow(days, hours, minutes) {
 		if (!days) {
@@ -97,11 +124,11 @@ var languageTool = (function () {
 	}
 
 	/**
-	 * 
+	 * Used to update the 'card' state after it has been viewed.
 	 * @private 
-	 * @param card 
-	 * @param difficulty 
-	 * @return
+	 * @param card A card object that should have indexes 'en' and 'es', and optionally (if it originated from the cardPile) 'ef', 'interval', 'showNext' and 'n'.
+	 * @param difficulty The rating from 0 - 5
+	 * @return An updated 'card' to be pushed back into the cardPile
 	 */
 	function _getNewCard(card,difficulty) {
 		var newEf = 2.5, newInterval = 1, newN = 1;
@@ -130,11 +157,17 @@ var languageTool = (function () {
 		
 		return newCard;
 	}
-	
+
+	/**
+	 * @param _datasource The datasource to pull entries from
+	 */
 	function setDatasource(_datasource) {
 		datasource = _datasource;
 	}
-	
+
+	/**
+	 * Get the next card. This will either pull the card from the data file or from the card pile
+	 */
 	function getCard() {
 		if (!localStorage) {
 			// throw error
@@ -202,8 +235,7 @@ var languageTool = (function () {
 		
 		localStorage.setItem('cardPile', JSON.stringify(cardPile));
 	}
-	
-	
+
 	return {
 		setDatasource: setDatasource,
 		getCard: getCard,
