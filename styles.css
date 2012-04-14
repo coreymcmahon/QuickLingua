@@ -1,0 +1,36 @@
+#card-container {
+	width: 500px;
+	margin: 0 auto;
+	border: 1px solid black;
+	height: 200px;
+	margin-top: 200px;
+	font: 100% Georgia, serif;
+	position: relative;	
+}
+#card-container button {
+	display: block;
+	position: absolute;
+	bottom: 5px;
+	right: 5px;
+}
+#card-container p {
+	margin-top: 5px;
+}
+#en, #es {
+	display: none;
+	margin: 0 auto;
+	font-size: 3em;
+	display: block;
+	text-align: center;
+	margin-top: 25px;
+}
+#rating {
+	display: none;
+}
+#rating-container {
+	text-align: center;
+	margin-top: 5px;
+}
+#rating-text {
+	padding-left: 5px;
+}

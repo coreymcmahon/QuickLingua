@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
+<script>
+"use strict";
+var datasource = (function () {
+	var config = {
+		url: './data/spanish.csv'
+	};
+	var data = null;
+	var counter = 0;
+
+	/**
+	 * @param _config Object containing the configuration values
+	 */
+	function setConfig(_config) {
+		config = _config;
+		data = null;
+	}
+	
+	function loadFile() {
+		$.ajax({
+			url: config.url,
+			async: false,
+			success: function (csv) {
+				var lines = ('' + csv).split('\n');
+				data = [];
+				for (var i=1 ; i < lines.length ; i++) {
+					var values = lines[i].split(',');
+					data[i-1] = {
+						en: values[0],
+						es: values[1]
+					}
+				}
+			}
+		});
+	}
+	
+	function next() {
+		if (!data) {
+			loadFile();
+		}
+		counter++;
+		return data[counter-1];
+	}
+	
+	function setCounter(_counter) {
+		counter = _counter;
+	}
+	
+	function random() {
+		if (!data) {
+			loadFile();
+		}
+		return data[Math.floor(Math.random()*data.length)];
+	}
+	
+	return {
+		next: next,
+		loadFile: loadFile,
+		random: random,
+		setCounter: setCounter
+	};
+} ());
+</script>
+<script>
+"use strict";
+
+var languageTool = (function () {
+	var datasource = null;
+	var cardPile = null;
+	var currentSessionCardStack = [];
+	var dataPointer = 0;
+	
+	var config = {
+		cardFactor: 0.9
+	};
+
+	/**
+	 * 
+	 *
+	 * @param days 
+	 * @param hours 
+	 * @param minutes 
+	 * @return
+	 */
+	function _getDateFromNow(days, hours, minutes) {
+		if (!days) {
+			days = 0;
+		}
+		if (!hours) {
+			hours = 0;
+		}
+		if (!minutes) {
+			minutes = 0;
+		}
+		
+		var timestamp = (new Date()).getTime();
+		timestamp += 1000 * 60 * 60 * 24 * days;
+		timestamp += 1000 * 60 * 60 * hours;
+		timestamp += 1000 * 60 * minutes;
+		
+		return new Date(timestamp);
+	}
+
+	/**
+	 * 
+	 * @private 
+	 * @param card 
+	 * @param difficulty 
+	 * @return
+	 */
+	function _getNewCard(card,difficulty) {
+		var newEf = 2.5, newInterval = 1, newN = 1;
+		if (card.ef) {
+			newEf = card.ef + 
+					(0.1 - (5.0 - parseFloat(difficulty)) * 
+					(0.08 + (5.0 - parseFloat(difficulty)) * 0.02));
+			if (newEf < 1.3) {
+				newEf = 1.3;
+			}
+			newInterval = Math.ceil(card.interval * newEf);
+			newN = card.n + 1;
+			if (newN == 2) {
+				newInterval = 6;
+			}
+		}
+		
+		var newCard = {
+			ef: newEf,
+			interval: newInterval,			
+			showNext: _getDateFromNow(newInterval),
+			n: newN,
+			en: card.en,
+			es: card.es
+		}
+		
+		return newCard;
+	}
+	
+	function setDatasource(_datasource) {
+		datasource = _datasource;
+	}
+	
+	function getCard() {
+		if (!localStorage) {
+			// throw error
+		}
+		cardPile = JSON.parse(localStorage.getItem('cardPile'));
+		
+		if (cardPile && cardPile.length > 0) {
+			if (config.cardFactor > Math.random()) {
+				if((new Date()) > (new Date(cardPile[0].showNext))) {
+					return cardPile[0];
+				}
+			}
+		}
+		
+		dataPointer = localStorage.getItem('dataPointer');
+		if (!dataPointer) {
+			localStorage.setItem('dataPointer', 1);
+		}
+		return datasource.next();
+	}
+
+	/**
+	 * 
+	 * @param card 
+	 * @param difficulty 
+	 * @return
+	 */	
+	function replaceCard(card,difficulty) {
+		cardPile = JSON.parse(localStorage.getItem('cardPile'));
+		if (!cardPile) {
+			cardPile = [];
+		}
+
+		// if this card is from the dictionary (ie: not a spaced repetition) we should advance the pointer
+		dataPointer = localStorage.getItem('dataPointer');
+		if (!card.ef && dataPointer) {
+			datasource.setCounter(dataPointer);
+			localStorage.setItem('dataPointer',++dataPointer);
+		}
+
+		// update the card
+		var newCard = _getNewCard(card,difficulty);
+		
+		for (var i=0 ; i<cardPile.length ; i++) {
+			// erase any existing card in the pile that matches this one
+			if ((cardPile[i].en == newCard.en)&&(cardPile[i].es == newCard.es)) {
+				cardPile.splice(i,1);
+				break;
+			}
+		}
+		
+		var added = false;
+		for (var i=0 ; i<cardPile.length ; i++) {
+			// put this card in the right place
+			if (newCard.showNext < cardPile[i].showNext) {
+				cardPile.splice(i,0,[newCard]);
+				added = true;
+				break;
+			}
+		}
+		if (!added) {
+			// if this cards showNext time is after everything currently in the cardPile, add it at the end
+			cardPile[cardPile.length] = newCard;
+		}
+		
+		localStorage.setItem('cardPile', JSON.stringify(cardPile));
+	}
+	
+	
+	return {
+		setDatasource: setDatasource,
+		getCard: getCard,
+		replaceCard: replaceCard
+	}
+} ());
+</script>
+<script>
+	var card = null;
+	function handleRatingChange() {
+		var selectedRating = $('#rating-container input:checked').val();
+		if (!isNaN(selectedRating)) {
+			$('#card-container button').removeAttr('disabled');
+		}
+	}
+	function handleShowClick() {
+		$('#en').show()
+				.html(card.en);
+		$('#rating').show();
+		$(this).off('click').on('click',handleNextClick);		
+		$(this).html('Next &gt;');
+		$(this).attr('disabled','disabled')
+	}
+	function handleNextClick() {
+		if (card) {
+			var difficulty = $('#rating-container input:checked').val();
+			languageTool.replaceCard(card,difficulty);
+		}
+		card = languageTool.getCard();
+		$('#es').show().html(card.es);
+		$('#en').hide();
+		$('#rating').hide();
+		$('#rating-container input:checked').removeAttr('checked')
+		$(this).off('click').on('click',handleShowClick).html('Show');
+	}
+	$(function () {
+		$('#card-container button').on('click', handleNextClick);
+		$('#rating-container input').on('change', handleRatingChange);
+		languageTool.setDatasource(datasource);
+	});
+</script>
+<style>
+#card-container {
+	width: 500px;
+	margin: 0 auto;
+	border: 1px solid black;
+	height: 200px;
+	margin-top: 200px;
+	font: 100% Georgia, serif;
+	position: relative;	
+}
+#card-container button {
+	display: block;
+	position: absolute;
+	bottom: 5px;
+	right: 5px;
+}
+#card-container p {
+	margin-top: 5px;
+}
+#en, #es {
+	display: none;
+	margin: 0 auto;
+	font-size: 3em;
+	display: block;
+	text-align: center;
+	margin-top: 25px;
+}
+#rating {
+	display: none;
+}
+#rating-container {
+	text-align: center;
+	margin-top: 5px;
+}
+#rating-text {
+	padding-left: 5px;
+}
+</style>
+<div id="card-container">
+	<p id="es">&nbsp;</p>
+	<p id="en">&nbsp;</p>	
+	<div id="rating">
+		<p id="rating-text">How well did you remember this token?</p>
+		<div id="rating-container">
+			<input type="radio" id="rating0" name="rating" value="0"> 
+			<label for="rating0">0</label>
+		
+			<input type="radio" id="rating1" name="rating" value="1"> 
+			<label for="rating1">1</label>
+			
+			<input type="radio" id="rating2" name="rating" value="2"> 
+			<label for="rating2">2</label>
+			
+			<input type="radio" id="rating3" name="rating" value="3"> 
+			<label for="rating3">3</label>
+			
+			<input type="radio" id="rating4" name="rating" value="4"> 
+			<label for="rating4">4</label>
+			
+			<input type="radio" id="rating5" name="rating" value="5"> 
+			<label for="rating5">5</label>
+		</div>
+	</div>
+	<button>Start</button>
+</div>
+</html>
